@@ -10,8 +10,6 @@
 #include "BlockObjectPool.h"
 #include "Entity.h"
 #include "FunctionTraits.h"
-#include <iostream>
-#include <typeinfo>
 
 namespace ECS {
 
@@ -72,7 +70,7 @@ public:
         mask.reset();
     }
 
-    bool IsActive (const Entity& id) {
+    bool IsActive (const Entity& id) const {
         return IndexIsActive(m_entityMap[id])
     }
 
@@ -120,8 +118,8 @@ public:
         return id != c_invalidEntity && m_entityMap.find(id) != m_entityMap.cend();
     }
 
-    template <typename TFunc, typename Arg0, typename... Args, std::size_t... Seq>
-    void UnpackAndCallback (TFunc&& callback, uint32_t entityIndex, TypeList<Arg0, Args...>, Sequence<Seq...>) {
+    template <typename TFunc, typename... Args, std::size_t... Seq>
+    void UnpackAndCallback (uint32_t entityIndex, TFunc&& callback, TypeList<Args...>, Sequence<Seq...>) {
         auto& indexCard = m_componentIndexCards[entityIndex];
         auto params = std::make_tuple(
             m_entities[entityIndex],
@@ -132,20 +130,24 @@ public:
 
     template <typename TFunc>
     void ForEach (TFunc&& callback) {
-        ComponentMask targetMask{};
         using FTraits = FunctionTraits<decltype(callback)>;
         static_assert(FTraits::ArgCount > 0, "First callback param must be an ECS::Entity.");
         static_assert(std::is_same<FTraits::Arg<0>, Entity>::value, "First callback param must be an ECS::Entity.");
-        using FArgs = typename FTraits::Args;
-        FArgs::ForTypes([&targetMask] (auto t) {
-            using ArgType = TYPE_OF(t);
-            if (FArgs::IndexOf<ArgType>() > 0) {
-                targetMask.set(GetComponentIndex<ArgType>());
-            }
+        using FComponentArgs = typename FTraits::Args::RemoveFirst;
+
+        ComponentMask targetMask{};
+        FComponentArgs::ForTypes([&targetMask] (auto t) {
+            targetMask.set(GetComponentIndex<TYPE_OF(t)>());
         });
+
         for (uint32_t i = 0; i < m_entityActiveCount; ++i) {
             if ((targetMask & m_componentMasks[i]) == targetMask) {
-                UnpackAndCallback(std::forward<TFunc>(callback), i, FArgs{}, typename GenerateSequence<FArgs::Size>::Type{});
+                UnpackAndCallback(
+                    i,
+                    callback,
+                    FComponentArgs{},
+                    typename GenerateSequence<FTraits::ArgCount>::Type{}
+                );
             }
         }
     }
@@ -201,7 +203,7 @@ private:
         );
     }
 
-    bool IndexIsActive (uint32_t index) {
+    bool IndexIsActive (uint32_t index) const {
         return index < m_entityActiveCount;
     }
 

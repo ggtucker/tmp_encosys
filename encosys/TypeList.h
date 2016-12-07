@@ -32,34 +32,42 @@ using Repeat = typename _Repeat<N, T>::Type;
 
 // Type List
 
-template <typename... TList> struct TypeList {
+template <typename... TList>
+struct TypeList {
+
     using ListTuple = std::tuple<TList...>;
 
     // Size of list
-
     static constexpr std::size_t Size = std::tuple_size<ListTuple>::value;
 
     // Get type at index
-
     template <std::size_t N>
     using Get = std::tuple_element_t<N, ListTuple>;
 
     // Append to list
-
     template <typename T>
     struct Append {
         using Type = TypeList<TList..., T>;
     };
 
     // Prepend to list
-
     template <typename T>
     struct Prepend {
         using Type = TypeList<T, TList...>;
     };
 
-    // Filter list
+    // Remove first type from type list
+    template <typename T>
+    struct _RemoveFirst;
 
+    template <typename T, typename... Types>
+    struct _RemoveFirst<TypeList<T, Types...>> {
+        using Type = TypeList<Types...>;
+    };
+
+    using RemoveFirst = typename _RemoveFirst<TypeList<TList...>>::Type;
+
+    // Filter list
     template <template <typename> class, typename, typename TResult>
     struct _Filter {
         using Type = TResult;
@@ -76,7 +84,6 @@ template <typename... TList> struct TypeList {
     using Filter = typename _Filter<TFilter, TypeList<TList...>, TypeList<>>::Type;
 
     // Wrap types in type list
-
     template <template <typename> class, typename, typename TResult>
     struct _WrapTypes {
         using Type = TResult;
@@ -91,7 +98,6 @@ template <typename... TList> struct TypeList {
     using WrapTypes = typename _WrapTypes<TWrapper, TypeList<TList...>, TypeList<>>::Type;
 
     // Check if contains type
-
     template <typename T, typename Tuple>
     struct _Contains;
 
@@ -116,7 +122,6 @@ template <typename... TList> struct TypeList {
     }
 
     // Get index of type
-
     template <typename T, typename Tuple>
     struct _IndexOf;
 
@@ -137,25 +142,19 @@ template <typename... TList> struct TypeList {
     }
 
     // Rename type list to use different wrapper of TList...
-
     template <template <typename...> class T>
     using Rename = T<TList...>;
 
     // Execute lambda on each type
-
     template <typename T>
     struct TypeWrapper {
         using Type = T;
     };
 
     template <typename TFunc>
-    static constexpr void Unpack (TFunc&& func) {
-
-    }
-
-    template <typename TFunc>
     static constexpr void ForTypes (TFunc&& func) {
         (void)std::initializer_list<int>{(func(TypeWrapper<TList>()), 0)...};
     };
 };
+
 }

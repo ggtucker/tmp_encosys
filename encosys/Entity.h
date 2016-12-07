@@ -9,14 +9,15 @@ template <uint32_t> class EntityManager;
 class Entity {
 public:
     Entity () = default;
-    operator uint64_t () const { return m_id; }
+    explicit operator uint64_t () const { return m_id; }
+    uint64_t Id () const { return m_id; }
 
-    bool operator== (const Entity& other) const { return m_id == other.m_id; }
-    bool operator!= (const Entity& other) const { return m_id != other.m_id; }
-    bool operator<  (const Entity& other) const { return m_id < other.m_id; }
-    bool operator>  (const Entity& other) const { return m_id > other.m_id; }
-    bool operator<= (const Entity& other) const { return m_id <= other.m_id; }
-    bool operator>= (const Entity& other) const { return m_id >= other.m_id; }
+    friend bool operator== (const Entity& lhs, const Entity& rhs) { return lhs.m_id == rhs.m_id; }
+    friend bool operator!= (const Entity& lhs, const Entity& rhs) { return lhs.m_id != rhs.m_id; }
+    friend bool operator<  (const Entity& lhs, const Entity& rhs) { return lhs.m_id < rhs.m_id; }
+    friend bool operator>  (const Entity& lhs, const Entity& rhs) { return lhs.m_id > rhs.m_id; }
+    friend bool operator<= (const Entity& lhs, const Entity& rhs) { return lhs.m_id <= rhs.m_id; }
+    friend bool operator>= (const Entity& lhs, const Entity& rhs) { return lhs.m_id >= rhs.m_id; }
 
 private:
     template <uint32_t> friend class EntityManager;
@@ -32,7 +33,7 @@ namespace std {
     template <>
     struct hash<ECS::Entity> {
         std::size_t operator() (const ECS::Entity& k) const {
-            return std::hash<uint64_t>()(k);
+            return std::hash<uint64_t>()(static_cast<uint64_t>(k));
         }
     };
 }
