@@ -11,82 +11,26 @@
 #include "Entity.h"
 #include "FunctionTraits.h"
 
+#ifndef ECS_MAX_COMPONENTS_
+#define ECS_MAX_COMPONENTS_ 64
+#endif
+
 namespace ECS {
 
-template <uint32_t MaxComponents = 64>
 class EntityManager {
 private:
-    using ComponentMask = std::bitset<MaxComponents>;
-    using ComponentIndexCard = std::array<uint32_t, MaxComponents>;
+    using ComponentMask = std::bitset<ECS_MAX_COMPONENTS_>;
+    using ComponentIndexCard = std::array<uint32_t, ECS_MAX_COMPONENTS_>;
 
 public:
     EntityManager () = default;
+    virtual ~EntityManager ();
 
-    Entity Create (bool active = true) {
-        Entity id{m_entityIdCounter};
-        ++m_entityIdCounter;
-
-        if (active) {
-            if (m_entityActiveCount == m_entities.size()) {
-                m_entityMap[id] = m_entities.size();
-                m_componentMasks.push_back({});
-                m_componentIndexCards.push_back({});
-                m_entities.push_back(id);
-            }
-            else {
-                m_entityMap[m_entities[m_entityActiveCount]] = m_entities.size();
-                m_componentMasks.push_back(m_componentMasks[m_entityActiveCount]);
-                m_componentIndexCards.push_back(m_componentIndexCards[m_entityActiveCount]);
-                m_entities.push_back(m_entities[m_entityActiveCount]);
-
-                m_entityMap[id] = m_entityActiveCount;
-                m_componentMasks[m_entityActiveCount].reset();
-                m_componentIndexCards[m_entityActiveCount] = {};
-                m_entities[m_entityActiveCount] = id;
-            }
-            ++m_entityActiveCount;
-        }
-        else {
-            m_entityMap[id] = m_entities.size();
-            m_componentMasks.push_back({});
-            m_componentIndexCards.push_back({});
-            m_entities.push_back(id);
-        }
-
-        return id;
-    }
-
-    void Destroy (const Entity& id) {
-        ECS_ASSERT_(IsValid(id));
-        SetActive(id, false);
-        auto index = m_entityMap[id];
-        auto& mask = m_componentMasks[index];
-        auto& indexCard = m_componentIndexCards[index];
-        for (uint32_t i = 0; i < mask.size(); ++i) {
-            if (mask.test(i)) {
-                m_componentPools[i]->Destroy(indexCard[i]);
-            }
-        }
-        mask.reset();
-    }
-
-    bool IsActive (const Entity& id) const {
-        return IndexIsActive(m_entityMap[id])
-    }
-
-    void SetActive (const Entity& id, bool active) {
-        auto index = m_entityMap[id];
-        if (active == IndexIsActive(index)) {
-            return;
-        }
-        if (m_entityActiveCount < m_entities.size()) {
-            SwapEntities(index, m_entityActiveCount);
-        }
-        else {
-            SwapEntities(index, m_entities.size() - 1);
-        }
-        m_entityActiveCount += (active ? 1 : -1);
-    }
+    Entity Create (bool active = true);
+    void Destroy (const Entity& id);
+    bool IsActive (const Entity& id) const;
+    void SetActive (const Entity& id, bool active);
+    bool IsValid (const Entity& id) const;
 
     template <typename TComponent, typename... TArgs>
     void AddComponent (const Entity& id, TArgs&&... args) {
@@ -114,9 +58,6 @@ public:
         mask.set(componentIndex, false);
     }
 
-    bool IsValid (const Entity& id) const {
-        return id != c_invalidEntity && m_entityMap.find(id) != m_entityMap.cend();
-    }
 
     template <typename TFunc, typename... Args, std::size_t... Seq>
     void UnpackAndCallback (uint32_t entityIndex, TFunc&& callback, TypeList<Args...>, Sequence<Seq...>) {
@@ -185,7 +126,7 @@ private:
     template <typename Component>
     static uint32_t _GetComponentIndexImpl () {
         static auto index = s_componentIndexCounter++;
-        ECS_ASSERT_(index < MaxComponents);
+        ECS_ASSERT_(index < ECS_MAX_COMPONENTS_);
         return index;
     }
 
@@ -203,23 +144,12 @@ private:
         );
     }
 
-    bool IndexIsActive (uint32_t index) const {
-        return index < m_entityActiveCount;
-    }
+    // Index helpers
+    bool IndexIsActive (uint32_t index) const;
+    void IndexSetActive (uint32_t index, bool active);
 
-    void SwapEntities (uint32_t lhsIndex, uint32_t rhsIndex) {
-        if (lhsIndex == rhsIndex) {
-            return;
-        }
-        m_entityMap[m_entities[lhsIndex]] = rhsIndex;
-        m_entityMap[m_entities[rhsIndex]] = lhsIndex;
-        std::swap(m_componentMasks[lhsIndex], m_componentMasks[rhsIndex]);
-        std::swap(m_componentIndexCards[lhsIndex], m_componentIndexCards[rhsIndex]);
-        std::swap(m_entities[lhsIndex], m_entities[rhsIndex]);
-    }
+    // Other helpers
+    void SwapEntities (uint32_t lhsIndex, uint32_t rhsIndex);
 };
-
-template <uint32_t MaxComponents>
-uint32_t EntityManager<MaxComponents>::s_componentIndexCounter = 0;
 
 }

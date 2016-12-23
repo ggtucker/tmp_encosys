@@ -4,7 +4,7 @@
 
 namespace ECS {
 
-template <uint32_t> class EntityManager;
+class EntityManager;
 
 class Entity {
 public:
@@ -20,7 +20,7 @@ public:
     friend bool operator>= (const Entity& lhs, const Entity& rhs) { return lhs.m_id >= rhs.m_id; }
 
 private:
-    template <uint32_t> friend class EntityManager;
+    friend class EntityManager;
     explicit Entity (uint64_t id) : m_id{id} {}
     uint64_t m_id{static_cast<uint64_t>(-1)};
 };
@@ -33,7 +33,7 @@ namespace std {
     template <>
     struct hash<ECS::Entity> {
         std::size_t operator() (const ECS::Entity& k) const {
-            return std::hash<uint64_t>()(static_cast<uint64_t>(k));
+            return std::hash<uint64_t>()(k.Id());
         }
     };
 }
