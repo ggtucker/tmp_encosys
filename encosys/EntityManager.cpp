@@ -50,7 +50,7 @@ void EntityManager::Destroy (const Entity& id) {
     auto entityIter = m_entityMap.find(id);
     ECS_ASSERT_(entityIter != m_entityMap.cend());
 
-    auto index = m_entityMap[id];
+    auto index = entityIter->second;
     auto& mask = m_componentMasks[index];
     auto& indexCard = m_componentIndexCards[index];
     for (uint32_t i = 0; i < mask.size(); ++i) {
@@ -96,17 +96,14 @@ bool EntityManager::IndexIsActive (uint32_t index) const {
     return index < m_entityActiveCount;
 }
 
-void EntityManager::IndexSetActive (uint32_t index, bool active) {
+void EntityManager::IndexSetActive (uint32_t& index, bool active) {
     if (active == IndexIsActive(index)) {
         return;
     }
-    if (m_entityActiveCount < m_entities.size()) {
-        SwapEntities(index, m_entityActiveCount);
-    }
-    else {
-        SwapEntities(index, m_entities.size() - 1);
-    }
+    const uint32_t newIndex = (m_entityActiveCount < m_entities.size()) ? m_entityActiveCount : (m_entities.size() - 1);
+    SwapEntities(index, newIndex);
     m_entityActiveCount += (active ? 1 : -1);
+    index = newIndex;
 }
 
 void EntityManager::SwapEntities (uint32_t lhsIndex, uint32_t rhsIndex) {

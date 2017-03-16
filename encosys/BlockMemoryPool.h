@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include "EncosysTypes.h"
 
 namespace ECS {
 

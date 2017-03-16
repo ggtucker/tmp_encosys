@@ -58,22 +58,11 @@ public:
         mask.set(componentIndex, false);
     }
 
-
-    template <typename TFunc, typename... Args, std::size_t... Seq>
-    void UnpackAndCallback (uint32_t entityIndex, TFunc&& callback, TypeList<Args...>, Sequence<Seq...>) {
-        auto& indexCard = m_componentIndexCards[entityIndex];
-        auto params = std::make_tuple(
-            m_entities[entityIndex],
-            std::ref(GetComponentPool<Args>().GetObject(indexCard[GetComponentIndex<Args>()]))...
-        );
-        callback(std::get<Seq>(params)...);
-    }
-
     template <typename TFunc>
     void ForEach (TFunc&& callback) {
         using FTraits = FunctionTraits<decltype(callback)>;
-        static_assert(FTraits::ArgCount > 0, "First callback param must be an ECS::Entity.");
-        static_assert(std::is_same<FTraits::Arg<0>, Entity>::value, "First callback param must be an ECS::Entity.");
+        static_assert(FTraits::ArgCount > 0, "First callback param must be ECS::Entity.");
+        static_assert(std::is_same<FTraits::Arg<0>, Entity>::value, "First callback param must be ECS::Entity.");
         using FComponentArgs = typename FTraits::Args::RemoveFirst;
 
         ComponentMask targetMask{};
@@ -117,6 +106,7 @@ private:
     uint32_t m_entityActiveCount{0};
 
 private:
+    // Component indexing
     static uint32_t s_componentIndexCounter;
     template <typename Component>
     static uint32_t GetComponentIndex () {
@@ -130,6 +120,7 @@ private:
         return index;
     }
 
+    // Component pools
     template <typename Component>
     BlockObjectPool<std::decay_t<Component>>& GetComponentPool () {
         auto componentIndex = GetComponentIndex<Component>();
@@ -144,9 +135,20 @@ private:
         );
     }
 
+    // ForEach helper
+    template <typename TFunc, typename... Args, std::size_t... Seq>
+    void UnpackAndCallback (uint32_t entityIndex, TFunc&& callback, TypeList<Args...>, Sequence<Seq...>) {
+        auto& indexCard = m_componentIndexCards[entityIndex];
+        auto params = std::make_tuple(
+            m_entities[entityIndex],
+            std::ref(GetComponentPool<Args>().GetObject(indexCard[GetComponentIndex<Args>()]))...
+        );
+        callback(std::get<Seq>(params)...);
+    }
+
     // Index helpers
     bool IndexIsActive (uint32_t index) const;
-    void IndexSetActive (uint32_t index, bool active);
+    void IndexSetActive (uint32_t& index, bool active);
 
     // Other helpers
     void SwapEntities (uint32_t lhsIndex, uint32_t rhsIndex);

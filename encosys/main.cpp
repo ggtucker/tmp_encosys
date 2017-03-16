@@ -7,7 +7,7 @@ struct PositionComponent {
 };
 
 int main () {
-    ECS::EntityManager<> manager;
+    ECS::EntityManager manager;
     ECS::Entity entity1 = manager.Create();
     manager.AddComponent<PositionComponent>(entity1, 10.0f, 20.0f, 30.0f);
 

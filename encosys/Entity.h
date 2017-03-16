@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EncosysTypes.h"
+#include "EcsTypes.h"
 
 namespace ECS {
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BlockMemoryPool.h"
+#include "EcsTypes.h"
 
 namespace ECS {
 

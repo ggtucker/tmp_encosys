@@ -1,6 +1,7 @@
 #include "BlockMemoryPool.h"
 
 #include <cstdio>
+#include "EcsTypes.h"
 
 namespace ECS {
 
