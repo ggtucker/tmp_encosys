@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EcsTypes.h"
+#include <functional>
 
 namespace ECS {
 

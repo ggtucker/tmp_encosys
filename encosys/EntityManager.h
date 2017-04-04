@@ -9,6 +9,7 @@
 #include <vector>
 #include "BlockObjectPool.h"
 #include "Entity.h"
+#include "System.h"
 #include "FunctionTraits.h"
 
 #ifndef ECS_MAX_COMPONENTS_
@@ -21,6 +22,7 @@ class EntityManager {
 private:
     using ComponentMask = std::bitset<ECS_MAX_COMPONENTS_>;
     using ComponentIndexCard = std::array<uint32_t, ECS_MAX_COMPONENTS_>;
+    using SystemCallback = std::function<void(float)>;
 
 public:
     EntityManager () = default;
@@ -82,6 +84,49 @@ public:
         }
     }
 
+    template <typename TObject, typename TFunc>
+    void ForEach (TObject* self, TFunc&& callback) {
+        using FTraits = FunctionTraits<decltype(callback)>;
+        static_assert(FTraits::ArgCount > 0, "First callback param must be ECS::Entity.");
+        static_assert(std::is_same<FTraits::Arg<0>, Entity>::value, "First callback param must be ECS::Entity.");
+        using FComponentArgs = typename FTraits::Args::RemoveFirst;
+
+        ComponentMask targetMask{};
+        FComponentArgs::ForTypes([&targetMask] (auto t) {
+            targetMask.set(GetComponentIndex<TYPE_OF(t)>());
+        });
+
+        for (uint32_t i = 0; i < m_entityActiveCount; ++i) {
+            if ((targetMask & m_componentMasks[i]) == targetMask) {
+                UnpackAndCallbackMember(
+                    self,
+                    i,
+                    callback,
+                    FComponentArgs{},
+                    typename GenerateSequence<FTraits::ArgCount>::Type{}
+                );
+            }
+        }
+    }
+
+    template <typename TSystem, typename... TArgs>
+    void RegisterSystem (TArgs&&... args) {
+        static_assert(std::is_base_of<CSystem, TSystem>::value, "TSystem must be derived from CSystem.");
+        m_systems.push_back([this, system = TSystem(std::forward<TArgs>(args)...)](float deltaTime) mutable {
+            system.m_manager = this;
+            system.m_deltaTime = deltaTime;
+            system.PreUpdate();
+            ForEach(&system, &TSystem::Update);
+            system.PostUpdate();
+        });
+    }
+
+    void RunSystems (float deltaTime) {
+        for (const auto& system : m_systems) {
+            system(deltaTime);
+        }
+    }
+
 private:
     // m_entityIdCounter is the id to be used for the next entity created.
     uint64_t m_entityIdCounter{0};
@@ -100,6 +145,9 @@ private:
 
     // m_componentPools contains the memory pools for each component type.
     std::vector<std::unique_ptr<BlockMemoryPool>> m_componentPools{};
+
+    // m_systems contains the list of registered system callbacks.
+    std::vector<SystemCallback> m_systems{};
 
     // m_entityActiveCount is the number of entities that are currently active.
     // Active entities are packed together at the beginning of the m_componentMasks array.
@@ -144,6 +192,17 @@ private:
             std::ref(GetComponentPool<Args>().GetObject(indexCard[GetComponentIndex<Args>()]))...
         );
         callback(std::get<Seq>(params)...);
+    }
+
+    // ForEachMember helper
+    template <typename TObject, typename TFunc, typename... Args, std::size_t... Seq>
+    void UnpackAndCallbackMember (TObject* self, uint32_t entityIndex, TFunc&& callback, TypeList<Args...>, Sequence<Seq...>) {
+        auto& indexCard = m_componentIndexCards[entityIndex];
+        auto params = std::make_tuple(
+            m_entities[entityIndex],
+            std::ref(GetComponentPool<Args>().GetObject(indexCard[GetComponentIndex<Args>()]))...
+        );
+        (self->*callback)(std::get<Seq>(params)...);
     }
 
     // Index helpers

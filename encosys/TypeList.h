@@ -60,6 +60,11 @@ struct TypeList {
     template <typename T>
     struct _RemoveFirst;
 
+    template <>
+    struct _RemoveFirst<TypeList<>> {
+        using Type = TypeList<>;
+    };
+
     template <typename T, typename... Types>
     struct _RemoveFirst<TypeList<T, Types...>> {
         using Type = TypeList<Types...>;
