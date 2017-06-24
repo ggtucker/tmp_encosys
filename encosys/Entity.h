@@ -5,7 +5,7 @@
 
 namespace ECS {
 
-class EntityManager;
+template <typename ComponentList> class EntityManager;
 
 class Entity {
 public:
@@ -21,7 +21,7 @@ public:
     friend bool operator>= (const Entity& lhs, const Entity& rhs) { return lhs.m_id >= rhs.m_id; }
 
 private:
-    friend class EntityManager;
+    template <typename ComponentList> friend class EntityManager;
     explicit Entity (uint64_t id) : m_id{id} {}
     uint64_t m_id{static_cast<uint64_t>(-1)};
 };

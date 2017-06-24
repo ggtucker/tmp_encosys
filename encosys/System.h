@@ -4,20 +4,22 @@
 
 namespace ECS {
 
-class EntityManager;
+template <typename ComponentList> class EntityManager;
 
-class CSystem {
+class System {
 public:
     virtual void PreUpdate () {}
     virtual void PostUpdate () {}
 
 protected:
-    EntityManager* Manager () const { return m_manager; }
     float DeltaTime () const { return m_deltaTime; }
 
+    template <typename EntityManager>
+    EntityManager* EntityManager () { return static_cast<EntityManager*>(m_entityManager); }
+
 private:
-    friend class EntityManager;
-    EntityManager* m_manager{};
+    template <typename ComponentList> friend class EntityManager;
+    void* m_entityManager{};
     float m_deltaTime{};
 };
 
